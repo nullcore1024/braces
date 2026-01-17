@@ -25,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.braces2.data.CorrectionPlan
 import java.time.Instant
 import java.time.LocalDate
@@ -54,16 +55,16 @@ fun PlanControl(
                     containerColor = androidx.compose.ui.graphics.Color(0xFFF5F5F5)
                 )
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(text = "当前计划:", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = "开始日期: ${latestPlan.startDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))}")
-                    Text(text = "正方向次数: ${latestPlan.forwardCount}")
-                    Text(text = "反方向次数: ${latestPlan.backwardCount}")
-                    Text(text = "周期长度: ${latestPlan.cycleLength}天")
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(text = "当前计划:", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = 14.sp)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(text = "开始日期: ${latestPlan.startDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))}", fontSize = 13.sp)
+                    Text(text = "正方向次数: ${latestPlan.forwardCount}", fontSize = 13.sp)
+                    Text(text = "反方向次数: ${latestPlan.backwardCount}", fontSize = 13.sp)
+                    Text(text = "周期长度: ${latestPlan.cycleLength}天", fontSize = 13.sp)
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
         }
 
         Row(
@@ -74,19 +75,15 @@ fun PlanControl(
             Text(text = "开始日期:")
             OutlinedButton(
                 onClick = { showDatePicker = true },
-                modifier = Modifier.padding(8.dp)
+                modifier = Modifier.weight(1f).padding(end = 8.dp)
             ) {
                 Text(text = selectedDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")))
             }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(
-            onClick = { onStartPlan(selectedDate, forwardCount, backwardCount) },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(text = "开始计划")
+            Button(
+                onClick = { onStartPlan(selectedDate, forwardCount, backwardCount) }
+            ) {
+                Text(text = "开始计划")
+            }
         }
 
         if (showDatePicker) {

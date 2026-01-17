@@ -148,14 +148,14 @@ fun BracesApp(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(12.dp)
     ) {
         // 应用标题
         Text(
             text = "牙齿纠正进展跟踪",
-            fontSize = 24.sp,
+            fontSize = 22.sp,
             fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier.padding(bottom = 12.dp)
         )
 
         // 计划控制组件
@@ -179,7 +179,7 @@ fun BracesApp(
                     showCompletionDialog = true
                 }
             },
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier.padding(bottom = 12.dp)
         )
 
         // 次数选择器
@@ -188,7 +188,7 @@ fun BracesApp(
             backwardCount = backwardCount,
             onForwardCountChange = { forwardCount = it },
             onBackwardCountChange = { backwardCount = it },
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier.padding(bottom = 12.dp)
         )
 
         // 日历视图
