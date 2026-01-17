@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,6 +15,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.Alignment
+import kotlin.math.min
+import kotlin.math.max
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -365,9 +370,47 @@ fun PlanListContent(plans: List<CorrectionPlan>?)
                     .wrapContentSize()
             )
         } else {
-            androidx.compose.foundation.lazy.LazyColumn {
-                items(plans) {
+            // 分页逻辑
+            val itemsPerPage = 10
+            val totalPages = (plans.size + itemsPerPage - 1) / itemsPerPage
+            var currentPage by remember { mutableStateOf(1) }
+            
+            val startIndex = (currentPage - 1) * itemsPerPage
+            val endIndex = min(startIndex + itemsPerPage, plans.size)
+            val currentPagePlans = plans.subList(startIndex, endIndex)
+            
+            // 计划列表
+            LazyColumn(
+                modifier = Modifier.weight(1f)
+            ) {
+                items(currentPagePlans) {
                     PlanCard(plan = it)
+                }
+            }
+            
+            // 分页控件
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(
+                    onClick = { currentPage = maxOf(1, currentPage - 1) },
+                    enabled = currentPage > 1
+                ) {
+                    Text(text = "上一页")
+                }
+                
+                Text(
+                    text = "$currentPage / $totalPages",
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                
+                Button(
+                    onClick = { currentPage = minOf(totalPages, currentPage + 1) },
+                    enabled = currentPage < totalPages
+                ) {
+                    Text(text = "下一页")
                 }
             }
         }
