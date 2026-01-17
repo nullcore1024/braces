@@ -58,10 +58,10 @@ fun PlanControl(
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(text = "当前计划:", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "开始日期: ${latestPlan.startDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))}", fontSize = 13.sp)
-                    Text(text = "正方向次数: ${latestPlan.forwardCount}", fontSize = 13.sp)
-                    Text(text = "反方向次数: ${latestPlan.backwardCount}", fontSize = 13.sp)
-                    Text(text = "周期长度: ${latestPlan.cycleLength}天", fontSize = 13.sp)
+                    Text(
+                        text = "开始日期: ${latestPlan.startDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))} 正=${latestPlan.forwardCount} 反=${latestPlan.backwardCount}", 
+                        fontSize = 13.sp
+                    )
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))
