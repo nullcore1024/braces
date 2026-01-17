@@ -17,6 +17,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.dp
 import kotlin.math.min
 import kotlin.math.max
 import androidx.compose.material3.AlertDialog
@@ -370,8 +372,17 @@ fun PlanListContent(plans: List<CorrectionPlan>?)
                     .wrapContentSize()
             )
         } else {
-            // 分页逻辑
-            val itemsPerPage = 10
+            // 自动计算每页显示数量
+            val configuration = LocalConfiguration.current
+            val screenHeight = configuration.screenHeightDp.dp
+            
+            // 估计每个卡片高度约80dp，减去标题和分页控件的高度
+            val headerHeight = 48.dp // 标题高度
+            val paginationHeight = 64.dp // 分页控件高度
+            val availableHeight = screenHeight - headerHeight - paginationHeight - 48.dp // 48dp是页面边距
+            val cardHeight = 80.dp // 估计每个卡片的高度
+            
+            val itemsPerPage = max(1, (availableHeight / cardHeight).toInt())
             val totalPages = (plans.size + itemsPerPage - 1) / itemsPerPage
             var currentPage by remember { mutableStateOf(1) }
             
@@ -380,37 +391,41 @@ fun PlanListContent(plans: List<CorrectionPlan>?)
             val currentPagePlans = plans.subList(startIndex, endIndex)
             
             // 计划列表
-            LazyColumn(
-                modifier = Modifier.weight(1f)
-            ) {
-                items(currentPagePlans) {
-                    PlanCard(plan = it)
+            Column(modifier = Modifier.weight(1f)) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(currentPagePlans) {
+                        PlanCard(plan = it)
+                    }
                 }
             }
             
             // 分页控件
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Button(
-                    onClick = { currentPage = maxOf(1, currentPage - 1) },
-                    enabled = currentPage > 1
+            if (totalPages > 1) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "上一页")
-                }
-                
-                Text(
-                    text = "$currentPage / $totalPages",
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-                
-                Button(
-                    onClick = { currentPage = minOf(totalPages, currentPage + 1) },
-                    enabled = currentPage < totalPages
-                ) {
-                    Text(text = "下一页")
+                    Button(
+                        onClick = { currentPage = max(1, currentPage - 1) },
+                        enabled = currentPage > 1
+                    ) {
+                        Text(text = "上一页")
+                    }
+                    
+                    Text(
+                        text = "$currentPage / $totalPages",
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                    
+                    Button(
+                        onClick = { currentPage = min(totalPages, currentPage + 1) },
+                        enabled = currentPage < totalPages
+                    ) {
+                        Text(text = "下一页")
+                    }
                 }
             }
         }
