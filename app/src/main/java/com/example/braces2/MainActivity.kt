@@ -7,12 +7,21 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
@@ -72,6 +81,9 @@ fun BracesApp(
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
     var showCompletionDialog by remember { mutableStateOf(false) }
     var completionStatus by remember { mutableStateOf("") }
+    var currentTab by remember { mutableStateOf(0) }
+    val tabTitles = listOf("当前计划", "计划列表")
+    var allPlans by remember { mutableStateOf<List<CorrectionPlan>?>(null) }
     
     // 在Composable函数顶层获取CoroutineScope
     val scope = rememberCoroutineScope()
@@ -140,6 +152,19 @@ fun BracesApp(
         }
     }
 
+    // 加载所有计划
+    LaunchedEffect(currentTab) {
+        if (currentTab == 1) {
+            scope.launch {
+                try {
+                    allPlans = repository.getAllPlans()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+    }
+
     // 加载日历数据 - 当selectedDate变化时，只更新选中状态，不重新加载所有数据
     LaunchedEffect(selectedDate) {
         // 这里不需要重新加载所有日历数据，只需要确保选中状态正确
@@ -147,6 +172,63 @@ fun BracesApp(
 
     Column(
         modifier = modifier
+            .fillMaxSize()
+    ) {
+        // 底部标签栏
+        TabRow(selectedTabIndex = currentTab) {
+            tabTitles.forEachIndexed { index, title ->
+                Tab(
+                    selected = currentTab == index,
+                    onClick = { currentTab = index },
+                    text = { Text(title) }
+                )
+            }
+        }
+
+        // 标签内容
+        when (currentTab) {
+            0 -> CurrentPlanContent(
+                repository,
+                latestPlan,
+                forwardCount,
+                backwardCount,
+                calendarDays,
+                selectedDate,
+                showCompletionDialog,
+                completionStatus,
+                onForwardCountChange = { forwardCount = it },
+                onBackwardCountChange = { backwardCount = it },
+                onSelectedDateChange = { selectedDate = it },
+                onShowCompletionDialogChange = { showCompletionDialog = it },
+                onCompletionStatusChange = { completionStatus = it },
+                onCalendarDaysChange = { calendarDays = it }
+            )
+            1 -> PlanListContent(allPlans)
+        }
+    }
+}
+
+@Composable
+fun CurrentPlanContent(
+    repository: AppRepository,
+    latestPlan: CorrectionPlan?,
+    forwardCount: Int,
+    backwardCount: Int,
+    calendarDays: List<CalendarDay>,
+    selectedDate: LocalDate,
+    showCompletionDialog: Boolean,
+    completionStatus: String,
+    onForwardCountChange: (Int) -> Unit,
+    onBackwardCountChange: (Int) -> Unit,
+    onSelectedDateChange: (LocalDate) -> Unit,
+    onShowCompletionDialogChange: (Boolean) -> Unit,
+    onCompletionStatusChange: (String) -> Unit,
+    onCalendarDaysChange: (List<CalendarDay>) -> Unit
+) {
+    // 在Composable函数顶层获取CoroutineScope
+    val scope = rememberCoroutineScope()
+    Column(
+        modifier = Modifier
             .fillMaxSize()
             .padding(12.dp)
     ) {
@@ -175,8 +257,8 @@ fun BracesApp(
                     // 处理异常，防止应用闪退
                     e.printStackTrace()
                     // 可以添加一个错误提示给用户
-                    completionStatus = "创建计划失败，请重试"
-                    showCompletionDialog = true
+                    onCompletionStatusChange("创建计划失败，请重试")
+                    onShowCompletionDialogChange(true)
                 }
             },
             modifier = Modifier.padding(bottom = 12.dp)
@@ -186,8 +268,8 @@ fun BracesApp(
         CountSelectors(
             forwardCount = forwardCount,
             backwardCount = backwardCount,
-            onForwardCountChange = { forwardCount = it },
-            onBackwardCountChange = { backwardCount = it },
+            onForwardCountChange = onForwardCountChange,
+            onBackwardCountChange = onBackwardCountChange,
             modifier = Modifier.padding(bottom = 12.dp)
         )
 
@@ -196,7 +278,7 @@ fun BracesApp(
             currentDate = selectedDate,
             calendarDays = calendarDays,
             onDateSelected = {
-                selectedDate = it
+                onSelectedDateChange(it)
             },
             modifier = Modifier.weight(1f)
         )
@@ -225,14 +307,14 @@ fun BracesApp(
                                     it
                                 }
                             }
-                            calendarDays = updatedDays
-                            completionStatus = "已完成${selectedDate.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"))}的打卡"
-                            showCompletionDialog = true
+                            onCalendarDaysChange(updatedDays)
+                            onCompletionStatusChange("已完成${selectedDate.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"))}的打卡")
+                            onShowCompletionDialogChange(true)
                         } catch (e: Exception) {
                             // 处理异常，防止应用闪退
                             e.printStackTrace()
-                            completionStatus = "打卡失败，请重试"
-                            showCompletionDialog = true
+                            onCompletionStatusChange("打卡失败，请重试")
+                            onShowCompletionDialogChange(true)
                         }
                     }
                 }
@@ -246,15 +328,74 @@ fun BracesApp(
         // 打卡完成对话框
         if (showCompletionDialog) {
             AlertDialog(
-                onDismissRequest = { showCompletionDialog = false },
+                onDismissRequest = { onShowCompletionDialogChange(false) },
                 title = { Text(text = "打卡完成") },
                 text = { Text(text = completionStatus) },
                 confirmButton = {
-                    Button(onClick = { showCompletionDialog = false }) {
+                    Button(onClick = { onShowCompletionDialogChange(false) }) {
                         Text(text = "确定")
                     }
                 }
             )
+        }
+    }
+}
+
+@Composable
+fun PlanListContent(plans: List<CorrectionPlan>?)
+{
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(12.dp)
+    ) {
+        Text(
+            text = "计划列表",
+            fontSize = 22.sp,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+        
+        if (plans.isNullOrEmpty()) {
+            Text(
+                text = "暂无计划",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .wrapContentSize()
+            )
+        } else {
+            androidx.compose.foundation.lazy.LazyColumn {
+                items(plans) {
+                    PlanCard(plan = it)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PlanCard(plan: CorrectionPlan) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 8.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = plan.startDate.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")),
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                fontSize = 16.sp
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "${plan.forwardCount}正${plan.backwardCount}反",
+                fontSize = 14.sp
+            )
+            Text(
+                text = "周期长度: ${plan.cycleLength}天",
+                fontSize = 14.sp
+                )
         }
     }
 }
