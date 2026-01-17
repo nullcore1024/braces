@@ -13,7 +13,8 @@ data class DailyRecord(
     val planId: Long,
     val completed: Boolean,
     val direction: CorrectionDirection,
-    val notes: String = ""
+    val notes: String = "",
+    val color: String? = null
 )
 
 // 用于UI显示的数据类
@@ -21,5 +22,6 @@ data class CalendarDay(
     val date: LocalDate,
     val direction: CorrectionDirection,
     val completed: Boolean,
-    val isToday: Boolean
+    val isToday: Boolean,
+    val color: String? = null
 )

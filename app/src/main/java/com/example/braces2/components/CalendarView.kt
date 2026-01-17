@@ -102,10 +102,10 @@ fun CalendarDayCell(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val backgroundColor = when {
+    // 首先使用day.color，如果没有则使用默认的颜色逻辑
+    // 优先使用day.color，如果没有则使用默认颜色逻辑
+    val backgroundColor = day.color?.let { Color(android.graphics.Color.parseColor(it)) } ?: when {
         day.isToday -> Color(0xFFE3F2FD)
-        day.direction == CorrectionDirection.FORWARD -> Color(0xFFFFEBEE) // Red background for forward
-        day.direction == CorrectionDirection.BACKWARD -> Color(0xFFE8F5E9) // Green background for backward
         else -> Color.White
     }
 
@@ -125,27 +125,33 @@ fun CalendarDayCell(
         ),
         elevation = if (day.isToday) CardDefaults.cardElevation(defaultElevation = 8.dp) else CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = day.date.dayOfMonth.toString(),
-                fontSize = 16.sp,
-                fontWeight = if (day.isToday) FontWeight.Bold else FontWeight.Normal
-            )
-            if (statusText.isNotEmpty()) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            // ✓图像显示在日期上面
+            if (day.completed) {
                 Text(
-                    text = statusText,
-                    fontSize = 12.sp,
-                    color = Color.DarkGray
+                    text = "✓",
+                    fontSize = 24.sp,
+                    color = Color.Green,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.TopCenter)
                 )
-                if (day.completed) {
+            }
+            
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = day.date.dayOfMonth.toString(),
+                    fontSize = 16.sp,
+                    fontWeight = if (day.isToday) FontWeight.Bold else FontWeight.Normal
+                )
+                if (statusText.isNotEmpty()) {
                     Text(
-                        text = "✓",
-                        fontSize = 16.sp,
-                        color = Color.Green
+                        text = statusText,
+                        fontSize = 12.sp,
+                        color = Color.DarkGray
                     )
                 }
             }
@@ -176,7 +182,8 @@ private fun getCalendarDaysForMonth(month: LocalDate, existingDays: List<Calenda
                     date = currentDate,
                     direction = CorrectionDirection.NONE,
                     completed = false,
-                    isToday = currentDate == LocalDate.now()
+                    isToday = currentDate == LocalDate.now(),
+                    color = null
                 )
             )
         }

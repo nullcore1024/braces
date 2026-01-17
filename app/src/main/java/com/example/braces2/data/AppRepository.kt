@@ -4,8 +4,6 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
@@ -22,19 +20,41 @@ class AppRepository(private val database: AppDatabase) {
 
     private fun loadLatestPlan() {
         coroutineScope.launch {
-            val plan = withContext(Dispatchers.IO) {
-                database.correctionPlanDao().getLatestPlan()
+            try {
+                val plan = withContext(Dispatchers.IO) {
+                    database.correctionPlanDao().getLatestPlan()
+                }
+                _latestPlan.value = plan
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _latestPlan.value = null
             }
-            _latestPlan.value = plan
         }
     }
 
     fun insertPlan(plan: CorrectionPlan) {
         coroutineScope.launch {
-            withContext(Dispatchers.IO) {
-                database.correctionPlanDao().insert(plan)
+            try {
+                withContext(Dispatchers.IO) {
+                    database.correctionPlanDao().upsert(plan)
+                }
+                loadLatestPlan()
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-            loadLatestPlan()
+        }
+    }
+
+    fun upsertPlan(plan: CorrectionPlan) {
+        coroutineScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    database.correctionPlanDao().upsert(plan)
+                }
+                loadLatestPlan()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
@@ -58,6 +78,12 @@ class AppRepository(private val database: AppDatabase) {
     suspend fun getRecordsInRange(startDate: LocalDate, endDate: LocalDate): List<DailyRecord> {
         return withContext(Dispatchers.IO) {
             database.dailyRecordDao().getRecordsInRange(startDate, endDate)
+        }
+    }
+
+    suspend fun getAllPlans(): List<CorrectionPlan>? {
+        return withContext(Dispatchers.IO) {
+            database.correctionPlanDao().getAllPlans()
         }
     }
 }

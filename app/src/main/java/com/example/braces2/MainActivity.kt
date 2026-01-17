@@ -15,11 +15,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.Observer
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -71,21 +75,29 @@ fun BracesApp(
     
     // 在Composable函数顶层获取CoroutineScope
     val scope = rememberCoroutineScope()
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-    // 加载最新计划
-    LaunchedEffect(Unit) {
-        val plan = repository.latestPlan.value
-        latestPlan = plan
+    // 观察最新计划变化
+    DisposableEffect(lifecycleOwner) {
+        val observer = Observer<CorrectionPlan?> {plan ->
+            latestPlan = plan
+        }
+        repository.latestPlan.observe(lifecycleOwner, observer)
+        
+        // 初始加载
+        repository.latestPlan.value?.let { latestPlan = it }
+        
+        // 清理函数
+        onDispose { repository.latestPlan.removeObserver(observer) }
     }
 
-    // 加载日历数据
-    LaunchedEffect(latestPlan, selectedDate) {
-        if (latestPlan != null) {
-            // 生成当前月份前后3个月的日历数据
+    // 监听latestPlan变化，重新加载日历数据
+    LaunchedEffect(latestPlan) {
+        try {
             val startDate = LocalDate.now().minusMonths(3)
             val endDate = LocalDate.now().plusMonths(3)
-            
             val records = repository.getRecordsInRange(startDate, endDate)
+            val allPlans = repository.getAllPlans()?.sortedBy { it.startDate }
             val days = mutableListOf<CalendarDay>()
             var currentDate = startDate
 
@@ -93,28 +105,44 @@ fun BracesApp(
                 val record = records.find { it.date == currentDate }
                 val direction = repository.getDirectionForDate(currentDate)
                 
+                // 根据矫正方向设置不同底色
+                val color = when (direction) {
+                    CorrectionDirection.FORWARD -> "#FFCDD2" // 红色底色
+                    CorrectionDirection.BACKWARD -> "#C8E6C9" // 绿色底色
+                    else -> null // 无方向则不渲染底色
+                }
+                
                 days.add(
                     CalendarDay(
                         date = currentDate,
                         direction = direction,
                         completed = record?.completed ?: false,
-                        isToday = currentDate == LocalDate.now()
+                        isToday = currentDate == LocalDate.now(),
+                        color = color
                     )
                 )
                 currentDate = currentDate.plusDays(1)
             }
             calendarDays = days
-        } else {
-            // 没有计划时，只显示当前日期
+        } catch (e: Exception) {
+            // 处理异常，防止应用闪退
+            e.printStackTrace()
+            // 重置日历数据，显示安全的默认状态
             calendarDays = listOf(
                 CalendarDay(
                     date = LocalDate.now(),
                     direction = CorrectionDirection.NONE,
                     completed = false,
-                    isToday = true
+                    isToday = true,
+                    color = null
                 )
             )
         }
+    }
+
+    // 加载日历数据 - 当selectedDate变化时，只更新选中状态，不重新加载所有数据
+    LaunchedEffect(selectedDate) {
+        // 这里不需要重新加载所有日历数据，只需要确保选中状态正确
     }
 
     Column(
@@ -136,13 +164,20 @@ fun BracesApp(
             forwardCount = forwardCount,
             backwardCount = backwardCount,
             onStartPlan = { date, forward, backward ->
-                val plan = CorrectionPlan(
-                    id = System.currentTimeMillis(),
-                    startDate = date,
-                    forwardCount = forward,
-                    backwardCount = backward
-                )
-                repository.insertPlan(plan)
+                try {
+                    val plan = CorrectionPlan(
+                        startDate = date,
+                        forwardCount = forward,
+                        backwardCount = backward
+                    )
+                    repository.insertPlan(plan)
+                } catch (e: Exception) {
+                    // 处理异常，防止应用闪退
+                    e.printStackTrace()
+                    // 可以添加一个错误提示给用户
+                    completionStatus = "创建计划失败，请重试"
+                    showCompletionDialog = true
+                }
             },
             modifier = Modifier.padding(bottom = 16.dp)
         )
@@ -160,8 +195,8 @@ fun BracesApp(
         CalendarView(
             currentDate = selectedDate,
             calendarDays = calendarDays,
-            onDateSelected = { date ->
-                selectedDate = date
+            onDateSelected = {
+                selectedDate = it
             },
             modifier = Modifier.weight(1f)
         )
@@ -169,28 +204,36 @@ fun BracesApp(
         // 打卡按钮
         Button(
             onClick = {
+                val currentPlan = latestPlan
                 val direction = repository.getDirectionForDate(selectedDate)
-                if (direction != CorrectionDirection.NONE && latestPlan != null) {
+                if (direction != CorrectionDirection.NONE && currentPlan != null) {
                     // 保存打卡记录
                     val record = DailyRecord(
                         date = selectedDate,
-                        planId = latestPlan!!.id,
+                        planId = currentPlan.id,
                         completed = true,
                         direction = direction
                     )
                     scope.launch {
-                        repository.saveRecord(record)
-                        // 更新日历数据
-                        val updatedDays = calendarDays.map {
-                            if (it.date == selectedDate) {
-                                it.copy(completed = true)
-                            } else {
-                                it
+                        try {
+                            repository.saveRecord(record)
+                            // 更新日历数据
+                            val updatedDays = calendarDays.map {
+                                if (it.date == selectedDate) {
+                                    it.copy(completed = true)
+                                } else {
+                                    it
+                                }
                             }
+                            calendarDays = updatedDays
+                            completionStatus = "已完成${selectedDate.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"))}的打卡"
+                            showCompletionDialog = true
+                        } catch (e: Exception) {
+                            // 处理异常，防止应用闪退
+                            e.printStackTrace()
+                            completionStatus = "打卡失败，请重试"
+                            showCompletionDialog = true
                         }
-                        calendarDays = updatedDays
-                        completionStatus = "已完成${selectedDate.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"))}的打卡"
-                        showCompletionDialog = true
                     }
                 }
             },

@@ -7,7 +7,7 @@ import java.time.LocalDate
 @Entity(tableName = "correctionplan")
 data class CorrectionPlan(
     @PrimaryKey(autoGenerate = true)
-    val id: Long,
+    val id: Long = 0,
     val startDate: LocalDate,
     val forwardCount: Int,
     val backwardCount: Int
@@ -17,6 +17,11 @@ data class CorrectionPlan(
 
     fun getDirectionForDate(date: LocalDate): CorrectionDirection {
         if (date.isBefore(startDate)) {
+            return CorrectionDirection.NONE
+        }
+
+        // 安全检查，防止除以0
+        if (cycleLength <= 0) {
             return CorrectionDirection.NONE
         }
 
