@@ -166,8 +166,18 @@ private fun getCalendarDaysForMonth(month: LocalDate, existingDays: List<Calenda
     val firstDayOfMonth = LocalDate.of(year, monthValue, 1)
     val lastDayOfMonth = firstDayOfMonth.with(TemporalAdjusters.lastDayOfMonth())
 
-    val startDate = firstDayOfMonth.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-    val endDate = lastDayOfMonth.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
+    // 确保从周一开始，到周日结束
+    // 计算当月的第一个周一或之前的周一
+    var startDate = firstDayOfMonth
+    while (startDate.dayOfWeek != DayOfWeek.MONDAY) {
+        startDate = startDate.minusDays(1)
+    }
+
+    // 计算当月的最后一个周日或之后的周日
+    var endDate = lastDayOfMonth
+    while (endDate.dayOfWeek != DayOfWeek.SUNDAY) {
+        endDate = endDate.plusDays(1)
+    }
 
     val result = mutableListOf<CalendarDay>()
     var currentDate = startDate

@@ -12,11 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,11 +28,15 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Calendar
+import java.util.Locale
+import androidx.compose.ui.viewinterop.AndroidView
+import android.widget.DatePicker as AndroidDatePicker
+import androidx.compose.material3.AlertDialog
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlanControl(
-    latestPlan: CorrectionPlan?,
+    latestPlan: CorrectionPlan?, 
     forwardCount: Int,
     backwardCount: Int,
     onStartPlan: (LocalDate, Int, Int) -> Unit,
@@ -43,9 +44,8 @@ fun PlanControl(
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
-    val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = Instant.now().toEpochMilli()
-    )
+    val calendar = Calendar.getInstance()
+    calendar.time = java.util.Date.from(selectedDate.atStartOfDay(ZoneId.systemDefault()).toInstant())
 
     Column(modifier = modifier) {
         if (latestPlan != null) {
@@ -87,18 +87,36 @@ fun PlanControl(
         }
 
         if (showDatePicker) {
-            DatePickerDialog(
+            AlertDialog(
                 onDismissRequest = { showDatePicker = false },
+                title = { Text(text = "选择开始日期") },
+                text = {
+                    AndroidView(factory = { context ->
+                        AndroidDatePicker(context).apply {
+                            // 设置当前日期
+                            init(
+                                calendar.get(Calendar.YEAR),
+                                calendar.get(Calendar.MONTH),
+                                calendar.get(Calendar.DAY_OF_MONTH)
+                            ) { view, year, month, dayOfMonth ->
+                                // 更新日历对象
+                                calendar.set(year, month, dayOfMonth)
+                            }
+                            // 设置星期的第一天为星期一
+                            firstDayOfWeek = Calendar.MONDAY
+                        }
+                    })
+                },
                 confirmButton = {
                     Button(
                         onClick = {
                             showDatePicker = false
-                            val selectedMillis = datePickerState.selectedDateMillis
-                            if (selectedMillis != null) {
-                                selectedDate = Instant.ofEpochMilli(selectedMillis)
-                                    .atZone(ZoneId.systemDefault())
-                                    .toLocalDate()
-                            }
+                            // 更新选中的日期
+                            selectedDate = LocalDate.of(
+                                calendar.get(Calendar.YEAR),
+                                calendar.get(Calendar.MONTH) + 1, // 注意：Calendar的月份是0-based
+                                calendar.get(Calendar.DAY_OF_MONTH)
+                            )
                         }
                     ) {
                         Text(text = "确定")
@@ -111,9 +129,7 @@ fun PlanControl(
                         Text(text = "取消")
                     }
                 }
-            ) {
-                DatePicker(state = datePickerState)
-            }
+            )
         }
     }
 }
